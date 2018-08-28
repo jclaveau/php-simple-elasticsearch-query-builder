@@ -266,9 +266,9 @@ class ElasticSearchQuery implements \JsonSerializable
         $operator = strtolower($operator);
         $field    = $this->renameField($field);
 
-        if ($operator != 'exists' && is_null($values)) {
+        if ($operator != 'exists' && $operator != 'not nested' && is_null($values)) {
             throw new \InvalidArgumentException(
-                "Only EXISTS clause doesn't require a value "
+                "Only EXISTS and NOT NESTED clause doesn't require a value "
             );
         }
 
@@ -477,6 +477,23 @@ class ElasticSearchQuery implements \JsonSerializable
             $this->addFilter( $this->wrapFilterIfNested( $field, ['exists' => [
                 'field' => $field
             ]]) );
+        }
+        elseif ($operator == 'not nested') {
+            $this->addFilterLevel('bool', function($query) use ($field, $values) {
+                $this->addFilterLevel('must_not', function($query) use ($field, $values) {
+                    $this->addFilter(
+                        [
+                            "nested" => [
+                                'path' => $field,
+                                'query' => [
+                                    'match_all' => [
+                                    ]
+                                ],
+                            ],
+                        ]
+                    );
+                }, true);
+            });
         }
         elseif (in_array($operator, ['regex', 'regexp'])) {
             // example
