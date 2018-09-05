@@ -888,5 +888,34 @@ class QueryTest extends \PHPUnit_Framework_TestCase
         );
     }
 
+    /**
+     */
+    public function test_not_nested_filter()
+    {
+        $query = new ElasticSearchQuery( ElasticSearchQuery::COUNT );
+
+        $query
+            ->where('field', 'not nested')
+            ;
+
+        $filters = VisibilityViolator::getHiddenProperty($query, 'filters');
+
+        $this->assertEquals([[
+            'bool' => [
+                'must_not' => [
+                    [
+                        'nested' => [
+                            'path'  => 'field',
+                            'query' => [
+                                'match_all' => [
+                                ]
+                            ]
+                        ]
+                    ],
+                ],
+            ],
+        ]], $filters);
+    }
+
     /**/
 }
