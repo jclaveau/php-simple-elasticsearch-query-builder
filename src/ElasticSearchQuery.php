@@ -481,9 +481,13 @@ class ElasticSearchQuery implements \JsonSerializable
         elseif ($operator == 'missing') {
             // The filter for a missing nested object is different from a filter for a missing (nested) field
             if (!$this->fieldIsNestedObject($field)) {
-                $this->addFilter( $this->wrapFilterIfNested( $field, ['missing' => [
-                    'field' => $field
-                ]]) );
+                $this->addFilterLevel('bool', function($query) use ($field, $values) {
+                    $this->addFilterLevel('must_not', function($query) use ($field, $values) {
+                        $this->addFilter( $this->wrapFilterIfNested( $field, ['exists' => [
+                            'field' => $field
+                        ]]) );
+                    }, true);
+                });
             }
             else {
                 $this->addFilterLevel('bool', function ($query) use ($field, $values) {

@@ -890,7 +890,7 @@ class QueryTest extends \PHPUnit_Framework_TestCase
 
     /**
      */
-    public function test_misisng_field_filter()
+    public function test_missing_field_filter()
     {
         $query = new ElasticSearchQuery( ElasticSearchQuery::COUNT );
 
@@ -901,15 +901,21 @@ class QueryTest extends \PHPUnit_Framework_TestCase
         $filters = VisibilityViolator::getHiddenProperty($query, 'filters');
 
         $this->assertEquals([
-            'missing' => [
-                'field' => 'field'
-            ],
+            'bool' => [
+                'must_not' => [
+                    [
+                        'exists' => [
+                            'field' => 'field'
+                        ]
+                    ],
+                ]
+            ]
         ], $filters[0]);
     }
 
     /**
      */
-    public function test_misisng_nested_object_filter()
+    public function test_missing_nested_object_filter()
     {
         $query = new ElasticSearchQuery( ElasticSearchQuery::COUNT );
 
@@ -939,7 +945,7 @@ class QueryTest extends \PHPUnit_Framework_TestCase
 
     /**
      */
-    public function test_misisng_nested_field_filter()
+    public function test_missing_nested_field_filter()
     {
         $query = new ElasticSearchQuery( ElasticSearchQuery::COUNT );
 
@@ -951,19 +957,25 @@ class QueryTest extends \PHPUnit_Framework_TestCase
         $filters = VisibilityViolator::getHiddenProperty($query, 'filters');
 
         $this->assertEquals([
-            'nested' => [
-                'path'  => 'nest',
-                'query' => [
-                    'filtered' => [
-                        'filter' => [
-                            'bool' => [
-                                'must' => [
-                                    [
-                                        'missing' => [
-                                            'field' => 'nest.field'
+            'bool' => [
+                'must_not' => [
+                    [
+                        'nested' => [
+                            'path'  => 'nest',
+                            'query' => [
+                                'filtered' => [
+                                    'filter' => [
+                                        'bool' => [
+                                            'must' => [
+                                                [
+                                                    'exists' => [
+                                                        'field' => 'nest.field'
+                                                    ]
+                                                ]
+                                            ],
                                         ]
                                     ]
-                                ],
+                                ]
                             ]
                         ]
                     ]
