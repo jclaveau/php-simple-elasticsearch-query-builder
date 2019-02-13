@@ -266,9 +266,9 @@ class ElasticSearchQuery implements \JsonSerializable
         $operator = strtolower($operator);
         $field    = $this->renameField($field);
 
-        if ($operator != 'exists' && $operator != 'not nested' && is_null($values)) {
+        if ($operator != 'exists' && $operator != 'missing' && is_null($values)) {
             throw new \InvalidArgumentException(
-                "Only EXISTS and NOT NESTED clause doesn't require a value "
+                "Only EXISTS and MISSING clause doesn't require a value "
             );
         }
 
@@ -478,22 +478,30 @@ class ElasticSearchQuery implements \JsonSerializable
                 'field' => $field
             ]]) );
         }
-        elseif ($operator == 'not nested') {
-            $this->addFilterLevel('bool', function($query) use ($field, $values) {
-                $this->addFilterLevel('must_not', function($query) use ($field, $values) {
-                    $this->addFilter(
-                        [
-                            "nested" => [
-                                'path' => $field,
-                                'query' => [
-                                    'match_all' => [
-                                    ]
+        elseif ($operator == 'missing') {
+            // The filter for a missing nested object is different from a filter for a missing (nested) field
+            if (!$this->fieldIsNestedObject($field)) {
+                $this->addFilter( $this->wrapFilterIfNested( $field, ['missing' => [
+                    'field' => $field
+                ]]) );
+            }
+            else {
+                $this->addFilterLevel('bool', function ($query) use ($field, $values) {
+                    $this->addFilterLevel('must_not', function ($query) use ($field, $values) {
+                        $this->addFilter(
+                            [
+                                "nested" => [
+                                    'path' => $field,
+                                    'query' => [
+                                        'match_all' => [
+                                        ]
+                                    ],
                                 ],
-                            ],
-                        ]
-                    );
-                }, true);
-            });
+                            ]
+                        );
+                    }, true);
+                });
+            }
         }
         elseif (in_array($operator, ['regex', 'regexp'])) {
             // example
@@ -1105,6 +1113,21 @@ class ElasticSearchQuery implements \JsonSerializable
                 return true;
             }
         }
+
+        return false;
+    }
+
+    /**
+     * Checks if a field is a nested object based on the list of nested fields
+     *
+     * @param  string The field to check
+     * @param  string The variable to store the found nested field in
+     *
+     * @return bool
+     */
+    public function fieldIsNestedObject($field)
+    {
+        if ($this->nested_fields) return in_array($field, $this->nested_fields);
 
         return false;
     }

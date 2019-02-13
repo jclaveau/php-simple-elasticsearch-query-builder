@@ -890,22 +890,42 @@ class QueryTest extends \PHPUnit_Framework_TestCase
 
     /**
      */
-    public function test_not_nested_filter()
+    public function test_misisng_field_filter()
     {
         $query = new ElasticSearchQuery( ElasticSearchQuery::COUNT );
 
         $query
-            ->where('field', 'not nested')
+            ->where('field', 'missing')
             ;
 
         $filters = VisibilityViolator::getHiddenProperty($query, 'filters');
 
-        $this->assertEquals([[
+        $this->assertEquals([
+            'missing' => [
+                'field' => 'field'
+            ],
+        ], $filters[0]);
+    }
+
+    /**
+     */
+    public function test_misisng_nested_object_filter()
+    {
+        $query = new ElasticSearchQuery( ElasticSearchQuery::COUNT );
+
+        $query
+            ->setNestedFields(['nest'])
+            ->where('nest', 'missing')
+            ;
+
+        $filters = VisibilityViolator::getHiddenProperty($query, 'filters');
+
+        $this->assertEquals([
             'bool' => [
                 'must_not' => [
                     [
                         'nested' => [
-                            'path'  => 'field',
+                            'path'  => 'nest',
                             'query' => [
                                 'match_all' => [
                                 ]
@@ -914,7 +934,42 @@ class QueryTest extends \PHPUnit_Framework_TestCase
                     ],
                 ],
             ],
-        ]], $filters);
+        ], $filters[0]);
+    }
+
+    /**
+     */
+    public function test_misisng_nested_field_filter()
+    {
+        $query = new ElasticSearchQuery( ElasticSearchQuery::COUNT );
+
+        $query
+            ->setNestedFields(['nest'])
+            ->where('nest.field', 'missing')
+            ;
+
+        $filters = VisibilityViolator::getHiddenProperty($query, 'filters');
+
+        $this->assertEquals([
+            'nested' => [
+                'path'  => 'nest',
+                'query' => [
+                    'filtered' => [
+                        'filter' => [
+                            'bool' => [
+                                'must' => [
+                                    [
+                                        'missing' => [
+                                            'field' => 'nest.field'
+                                        ]
+                                    ]
+                                ],
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ], $filters[0]);
     }
 
     /**/
